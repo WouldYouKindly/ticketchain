@@ -1,4 +1,4 @@
-from tickets.tickets import app
+from tickets.app import app
 from tickets.views import *  # to initialize views
 
 
