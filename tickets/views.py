@@ -1,11 +1,11 @@
 from flask import request, jsonify
 from sqlalchemy.exc import IntegrityError
 
-from .tickets import app
+from .app import app
 from .models import Ticket, Organizer
 
 
-@app.route('/api/v1/organizers')
+@app.route('/api/v1/organizers', methods=['POST'])
 def organizers():
     return jsonify({})
 
@@ -34,8 +34,8 @@ def get_ticket_count(inn):
 @app.route('/api/v1/organizers/<string:inn>/tickets', methods=['GET'])
 def get_tickets_by_organizer(inn):
     state = request.args['state']
-    page = request.args.get('page', 1)
-    limit = request.args.get('limit', 50)
+    page = int(request.args.get('page', 1))
+    limit = int(request.args.get('limit', 50))
     return jsonify([t.id for t in Ticket.by_inn(inn, state, page, limit)]), 201
 
 
@@ -45,7 +45,7 @@ def create_ticket(inn):
     if not Organizer.by_inn(inn):
         organizer = Organizer.create(inn)
 
-    serial_number = request.json['serial_number']
+    serial_number = request.get_json()['serial_number']
     try:
         ticket = Ticket.create(organizer.id, serial_number)
     except IntegrityError:
@@ -65,18 +65,23 @@ def get_ticket(inn, id_or_serial_number):
 
 @app.route('/api/v1/organizers/<string:inn>/tickets/<int:ticket_id>', methods=['PUT'])
 def edit_ticket(inn, ticket_id):
+    info = request.get_json()
+    ticket = Ticket.by_inn_and_id_or_serial_number(inn, ticket_id)
+    ticket.set_info(info)
     return "", 201
 
 
 @app.route('/api/v1/organizers/<string:inn>/tickets/<int:ticket_id>/sell', methods=['POST'])
 def sell_ticket(inn, ticket_id):
-    Ticket.sell_by_inn_and_id(inn, ticket_id)
+    ticket = Ticket.by_inn_and_id_or_serial_number(inn, ticket_id)
+    ticket.sell()
     return "", 201
 
 
 @app.route('/api/v1/organizers/<string:inn>/tickets/<int:ticket_id>/cancel', methods=['POST'])
 def cancel_ticket(inn, ticket_id):
-    Ticket.cancel_by_inn_and_id(inn, ticket_id)
+    ticket = Ticket.by_inn_and_id_or_serial_number(inn, ticket_id)
+    ticket.cancel()
     return "", 201
 
 

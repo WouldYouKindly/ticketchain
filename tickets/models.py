@@ -2,7 +2,7 @@ import json
 from random import randint
 from datetime import datetime
 
-from .tickets import db
+from .app import db
 
 
 class Organizer(db.Model):
@@ -38,7 +38,8 @@ class Ticket(db.Model):
             "serial_number": self.serial_number,
             "id": self.id,
             "state": self.state,
-            "created_date": self.created_at
+            "created_date": self.created_at.strftime('%d.%m.%Y %H:%M'),
+            "contract_address": self.contract_address
         }
 
         info = self.info or "{}"
@@ -46,21 +47,17 @@ class Ticket(db.Model):
 
         return json.dumps(ticket)
 
-    @staticmethod
-    def cancel_by_inn_and_id(inn, ticket_id):
-        return db.session.query(Ticket).\
-            join(Organizer, Organizer.id == Ticket.organizer_id). \
-            filter(Ticket.id == ticket_id,
-                   Organizer.inn == inn).\
-            update({'state': 'cancelled'})
+    def sell(self):
+        self.state = 'sold'
+        db.session.commit()
 
-    @staticmethod
-    def sell_by_inn_and_id(inn, ticket_id):
-        return db.session.query(Ticket). \
-            join(Organizer, Organizer.id == Ticket.organizer_id). \
-            filter(Ticket.id == ticket_id,
-                   Organizer.inn == inn). \
-            update({'state': 'sold'})
+    def cancel(self):
+        self.state = 'cancelled'
+        db.session.commit()
+
+    def set_info(self, info):
+        self.info = json.dumps(info)
+        db.session.commit()
 
     @staticmethod
     def by_inn(inn, state, page=1, limit=50):
@@ -95,7 +92,7 @@ class Ticket(db.Model):
         t = Ticket(organizer_id=organizer_id,
                    serial_number=serial_number,
                    state='created',
-                   contract_address=randint(1, 1000000000000000000000000))
+                   contract_address=randint(1, 1000000000000))
         db.session.add(t)
         db.session.commit()
         return t
